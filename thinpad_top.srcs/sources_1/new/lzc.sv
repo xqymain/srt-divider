@@ -1,17 +1,3 @@
-// Copyright (c) 2018 - 2019 ETH Zurich, University of Bologna
-// All rights reserved.
-//
-// This code is under development and not yet released to the public.
-// Until it is released, the code is under the copyright of ETH Zurich and
-// the University of Bologna, and may contain confidential and/or unpublished
-// work. Any reuse/redistribution is strictly forbidden without written
-// permission from ETH Zurich.
-//
-// Bug fixes and contributions will eventually be released under the
-// SolderPad open hardware license in the context of the PULP platform
-// (http://www.pulp-platform.org), under the copyright of ETH Zurich and the
-// University of Bologna.
-
 /// A trailing zero counter / leading zero counter.
 /// Set MODE to 0 for trailing zero counter => cnt_o is the number of trailing zeros (from the LSB)
 /// Set MODE to 1 for leading zero counter  => cnt_o is the number of leading zeros  (from the MSB)
@@ -20,8 +6,7 @@
 ///   in_i = 000_0000, empty_o = 1, cnt_o = 6 (mode = 0)
 ///   in_i = 000_0001, empty_o = 0, cnt_o = 0 (mode = 0)
 ///   in_i = 000_1000, empty_o = 0, cnt_o = 3 (mode = 0)
-/// Furthermore, this unit contains a more efficient implementation for Verilator (simulation only).
-/// This speeds up simulation significantly.
+
 module lzc #(
   /// The width of the input vector.
   parameter int unsigned WIDTH = 2,
@@ -48,12 +33,6 @@ module lzc #(
   end else begin : gen_lzc
 
     localparam int unsigned NumLevels = $clog2(WIDTH);
-
-    // pragma translate_off
-    initial begin
-      assert(WIDTH > 0) else $fatal(1, "input must be at least one bit wide");
-    end
-    // pragma translate_on
 
     logic [WIDTH-1:0][NumLevels-1:0] index_lut;
     logic [2**NumLevels-1:0] sel_nodes;

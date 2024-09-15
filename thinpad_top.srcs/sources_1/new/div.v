@@ -1,28 +1,27 @@
 module div #(
+	// Only support WIDTH = 64/32/16
 	parameter WIDTH = 32
 )(
-    input  div,
-    input  div_signed,
-    input  [WIDTH-1:0] x,
-    input  [WIDTH-1:0] y,
+	input  div,
+	input  div_signed,
+	input  [WIDTH-1:0] x,
+	input  [WIDTH-1:0] y,
 
-    output complete,
-    output [WIDTH-1:0] s,
-    output [WIDTH-1:0] r,
+	output complete,
+	output [WIDTH-1:0] s,
+	output [WIDTH-1:0] r,
 
-    input  div_clk,
-    input  resetn
+	input  div_clk,
+	input  resetn
 );
 
-// ================================================================================================================================================
-// (local) parameters begin
-
+// localparams
 localparam FSM_WIDTH 			= 6;
 localparam FSM_IDLE_ABS_BIT	 	= 0;
 localparam FSM_PRE_0_BIT	 	= 1;
 localparam FSM_PRE_1_BIT	 	= 2;
 localparam FSM_ITER_BIT		 	= 3;
-localparam FSM_POST_0_BIT	 	= 4;
+localparam FSM_POST_0_BIT	    = 4;
 localparam FSM_POST_1_BIT	 	= 5;
 localparam FSM_IDLE_ABS			= 6'b00_0001;
 localparam FSM_PRE_PROCESS_0 	= 6'b00_0010;
@@ -31,48 +30,35 @@ localparam FSM_SRT_ITERATION 	= 6'b00_1000;
 localparam FSM_POST_PROCESS_0 	= 6'b01_0000;
 localparam FSM_POST_PROCESS_1 	= 6'b10_0000;
 
-// How many bits do we need to express the Leading Zero Count of the data ?
+// need bits to express the Leading Zero Count of the data
 localparam LZC_WIDTH = $clog2(WIDTH);
 
 // ITN = InTerNal
 // 1-bit in front of the MSB of rem -> Sign.
 // 2-bit after the LSB of rem -> Used in Retiming Design.
-// 1-bit after the LSB of rem -> Used for Align operation.
-localparam ITN_WIDTH = 1 + WIDTH + 2 + 1;
+// 3-bit after the LSB of rem -> Used for Align operation.
+localparam ITN_W = 1 + WIDTH + 2 + 3;
 
-localparam QUOT_ONEHOT_WIDTH = 5;
-localparam QUOT_NEG_2 = 0;
-localparam QUOT_NEG_1 = 1;
-localparam QUOT_ZERO  = 2;
-localparam QUOT_POS_1 = 3;
-localparam QUOT_POS_2 = 4;
-localparam QUOT_ONEHOT_NEG_2 = 5'b0_0001;
-localparam QUOT_ONEHOT_NEG_1 = 5'b0_0010;
-localparam QUOT_ONEHOT_ZERO  = 5'b0_0100;
-localparam QUOT_ONEHOT_POS_1 = 5'b0_1000;
-localparam QUOT_ONEHOT_POS_2 = 5'b1_0000;
+localparam QUO_ONEHOT_WIDTH = 5;
+localparam QUO_NEG_2 = 0;
+localparam QUO_NEG_1 = 1;
+localparam QUO_ZERO  = 2;
+localparam QUO_POS_1 = 3;
+localparam QUO_POS_2 = 4;
+localparam QUO_ONEHOT_NEG_2 = 5'b0_0001;
+localparam QUO_ONEHOT_NEG_1 = 5'b0_0010;
+localparam QUO_ONEHOT_ZERO  = 5'b0_0100;
+localparam QUO_ONEHOT_POS_1 = 5'b0_1000;
+localparam QUO_ONEHOT_POS_2 = 5'b1_0000;
 
-// (local) parameters end
-// ================================================================================================================================================
-
-// ================================================================================================================================================
-// functions begin
-
-
-
-// functions end
-// ================================================================================================================================================
-
-// ================================================================================================================================================
-// signals begin
-
+// signals
 genvar i;
 
 wire div_start_handshaked;
 reg [FSM_WIDTH-1:0] fsm_d;
 reg [FSM_WIDTH-1:0] fsm_q;
 
-// 1 extra bit for LZC.
+// 1-extra bit for LZC
 wire [(LZC_WIDTH + 1)-1:0] dividend_lzc, divisor_lzc;
 wire dividend_lzc_en, divisor_lzc_en;
 wire [(LZC_WIDTH + 1)-1:0] dividend_lzc_d, divisor_lzc_d;
@@ -81,12 +67,51 @@ reg [(LZC_WIDTH + 1)-1:0] dividend_lzc_q, divisor_lzc_q;
 wire [(LZC_WIDTH + 1)-1:0] lzc_diff_slow;
 // The delay of this signal is "delay(LZC_WIDTH-bit full adder)" -> fast
 wire [(LZC_WIDTH + 1)-1:0] lzc_diff_fast;
-wire r_shift_num;
-wire pre_r_shift_num;
-wire final_iter;
+wire [2-1:0] r_shift_num;
 wire iter_num_en;
-wire [(LZC_WIDTH - 1)-1:0] iter_num_d;
-reg [(LZC_WIDTH - 1)-1:0] iter_num_q;
+wire [(LZC_WIDTH - 2)-1:0] iter_num_d;
+reg [(LZC_WIDTH - 2)-1:0] iter_num_q;
+wire final_iter;
+
+wire dividend_sign;
+wire divisor_sign;
+wire [WIDTH-1:0] dividend_abs;
+wire [WIDTH-1:0] divisor_abs;
+wire dividend_abs_en;
+wire [(WIDTH+1)-1:0] dividend_abs_d;
+reg [(WIDTH+1)-1:0] dividend_abs_q;
+wire [WIDTH-1:0] normalized_dividend;
+wire divisor_abs_en;
+wire [(WIDTH+1)-1:0] divisor_abs_d;
+reg [(WIDTH+1)-1:0] divisor_abs_q;
+wire [WIDTH-1:0] normalized_divisor;
+wire [(ITN_W + 2)-1:0] divisor_ext;
+wire [WIDTH-1:0] inverter_in [1:0];
+wire [WIDTH-1:0] inverter_res [1:0];
+
+wire no_iter_needed_en;
+wire no_iter_needed_d;
+reg no_iter_needed_q;
+wire dividend_too_small_en;
+wire dividend_too_small_d;
+reg dividend_too_small_q;
+wire divisor_eq_zero;
+wire divisor_eq_one;
+
+wire quo_sign_en;
+wire quo_sign_d;
+reg quo_sign_q;
+wire rem_sign_en;
+wire rem_sign_d;
+reg rem_sign_q;
+
+// nr = non_redundant
+wire [ITN_W-1:0] nr_rem_nxt;
+wire [ITN_W-1:0] nr_rem_plus_d_nxt;
+wire [(WIDTH+1)-1:0] nr_rem;
+wire [(WIDTH+1)-1:0] nr_rem_plus_d;
+wire nr_rem_is_zero;
+wire need_corr;
 
 wire [(WIDTH + 1)-1:0] pre_shifted_rem;
 wire [WIDTH-1:0] post_r_shift_data_in;
@@ -101,48 +126,10 @@ wire [WIDTH-1:0] post_r_shift_res_s4;
 wire [WIDTH-1:0] post_r_shift_res_s5;
 // wire [WIDTH-1:0] post_r_shift_res_s6;
 
-wire dividend_sign;
-wire divisor_sign;
-wire [WIDTH-1:0] dividend_abs;
-wire [WIDTH-1:0] divisor_abs;
-wire [WIDTH-1:0] normalized_dividend;
-wire dividend_abs_en;
-wire [(WIDTH + 1)-1:0] dividend_abs_d;
-reg [(WIDTH + 1)-1:0] dividend_abs_q;
-wire divisor_abs_en;
-wire [(WIDTH + 1)-1:0] divisor_abs_d;
-reg [(WIDTH + 1)-1:0] divisor_abs_q;
-wire [WIDTH-1:0] normalized_divisor;
-
-wire no_iter_needed_en;
-wire no_iter_needed_d;
-reg no_iter_needed_q;
-wire dividend_too_small_en;
-wire dividend_too_small_d;
-reg dividend_too_small_q;
-wire ys_zero;
-wire ys_one;
-
-wire quot_sign_en;
-wire quot_sign_d;
-reg quot_sign_q;
-wire rem_sign_en;
-wire rem_sign_d;
-reg rem_sign_q;
-
-// nrdnt = non-redundant
-wire [(WIDTH + 1)-1:0] nrdnt_rem;
-wire [ITN_WIDTH-1:0] nrdnt_rem_nxt;
-wire [(WIDTH + 1)-1:0] nrdnt_rem_plus_d;
-wire [ITN_WIDTH-1:0] nrdnt_rem_plus_d_nxt;
-wire nrdnt_rem_is_zero;
-wire need_corr;
-
 wire [5-1:0] pre_m_pos_1;
 wire [5-1:0] pre_m_pos_2;
 wire [2-1:0] pre_cmp_res;
 wire [5-1:0] pre_rem_trunc_1_4;
-
 wire qds_para_neg_1_en;
 wire [5-1:0] qds_para_neg_1_d;
 reg [5-1:0] qds_para_neg_1_q;
@@ -159,50 +146,40 @@ wire special_divisor_en;
 wire special_divisor_d;
 reg special_divisor_q;
 
-wire [ITN_WIDTH-1:0] rem_sum_normal_init_value;
-wire [ITN_WIDTH-1:0] rem_sum_init_value;
-wire [ITN_WIDTH-1:0] rem_carry_init_value;
-
+wire [ITN_W-1:0] rem_sum_normal_init_value;
+wire [ITN_W-1:0] rem_sum_init_value;
+wire [ITN_W-1:0] rem_carry_init_value;
 wire rem_sum_en;
-wire [ITN_WIDTH-1:0] rem_sum_d;
-reg [ITN_WIDTH-1:0] rem_sum_q;
+wire [ITN_W-1:0] rem_sum_d;
+reg [ITN_W-1:0] rem_sum_q;
 wire rem_carry_en;
-wire [ITN_WIDTH-1:0] rem_carry_d;
-reg [ITN_WIDTH-1:0] rem_carry_q;
-wire [ITN_WIDTH-1:0] rem_sum_iter_end;
-wire [ITN_WIDTH-1:0] rem_carry_iter_end;
-wire [ITN_WIDTH-1:0] csa_3_2_x1;
-wire [ITN_WIDTH-1:0] csa_3_2_x2;
-wire [ITN_WIDTH-1:0] csa_3_2_x3;
-wire csa_3_2_carry_unused;
+wire [ITN_W-1:0] rem_carry_d;
+reg [ITN_W-1:0] rem_carry_q;
+wire [ITN_W-1:0] rem_sum_nxt;
+wire [ITN_W-1:0] rem_carry_nxt;
 
-wire prev_quot_digit_en;
-wire [QUOT_ONEHOT_WIDTH-1:0] prev_quot_digit_d;
-reg [QUOT_ONEHOT_WIDTH-1:0] prev_quot_digit_q;
-wire [QUOT_ONEHOT_WIDTH-1:0] prev_quot_digit_init_value;
-wire [QUOT_ONEHOT_WIDTH-1:0] quot_digit_iter_end;
-wire iter_quot_en;
-wire [WIDTH-1:0] iter_quot_d;
-reg [WIDTH-1:0] iter_quot_q;
-wire [WIDTH-1:0] iter_quot_nxt;
-wire iter_quot_minus_1_en;
-wire [WIDTH-1:0] iter_quot_minus_1_d;
-reg [WIDTH-1:0] iter_quot_minus_1_q;
-wire [WIDTH-1:0] iter_quot_minus_1_nxt;
+wire prev_quo_digit_en;
+wire [QUO_ONEHOT_WIDTH-1:0] prev_quo_digit_d;
+reg [QUO_ONEHOT_WIDTH-1:0] prev_quo_digit_q;
+wire [QUO_ONEHOT_WIDTH-1:0] prev_quo_digit_init_value;
+wire [QUO_ONEHOT_WIDTH-1:0] quo_digit_nxt;
+wire quo_iter_en;
+wire [WIDTH-1:0] quo_iter_d;
+reg [WIDTH-1:0] quo_iter_q;
+wire [WIDTH-1:0] quo_iter_nxt;
+// m1 = minus_1
+wire quo_m1_iter_en;
+wire [WIDTH-1:0] quo_m1_iter_d;
+reg [WIDTH-1:0] quo_m1_iter_q;
+wire [WIDTH-1:0] quo_m1_iter_nxt;
 
 wire [WIDTH-1:0] final_rem;
-wire [WIDTH-1:0] final_quot;
+wire [WIDTH-1:0] final_quo;
 
-wire [WIDTH-1:0] inverter_in [1:0];
-wire [WIDTH-1:0] inverter_res [1:0];
 
-// signals end
-// ================================================================================================================================================
+assign div_start_handshaked = div & fsm_q[FSM_IDLE_ABS_BIT];
 
-assign div_start_handshaked = div & div_start_ready_o;
-// ================================================================================================================================================
 // FSM Ctrl wire
-// ================================================================================================================================================
 always @(*) begin
 	case(fsm_q)
 		FSM_IDLE_ABS:
@@ -210,7 +187,7 @@ always @(*) begin
 		FSM_PRE_PROCESS_0:
 			fsm_d = FSM_PRE_PROCESS_1;
 		FSM_PRE_PROCESS_1:
-			fsm_d = (dividend_too_small_q | ys_zero | no_iter_needed_q) ? FSM_POST_PROCESS_0 : FSM_SRT_ITERATION;
+			fsm_d = (dividend_too_small_q | divisor_eq_zero | no_iter_needed_q) ? FSM_POST_PROCESS_0 : FSM_SRT_ITERATION;
 		FSM_SRT_ITERATION:
 			fsm_d = final_iter ? FSM_POST_PROCESS_0 : FSM_SRT_ITERATION;
 		FSM_POST_PROCESS_0:
@@ -221,9 +198,6 @@ always @(*) begin
 			fsm_d = FSM_IDLE_ABS;
 	endcase
 
-	//if(flush_i)
-		// flush has the highest priority.
-	//	fsm_d = FSM_IDLE_ABS;
 end
 
 always @(posedge div_clk or negedge resetn) begin
@@ -232,14 +206,11 @@ always @(posedge div_clk or negedge resetn) begin
 	else
 		fsm_q <= fsm_d;
 end
-
-// ================================================================================================================================================
 // R_SHIFT
-// ================================================================================================================================================
-// PRE_PROCESS_1: r_shift the dividend for "dividend_too_small/ys_zero".
-// POST_PROCESS_1: If "dividend_too_small/ys_zero", we should not do any r_shift. Because we have already put dividend into the correct position
+// PRE_PROCESS_1: r_shift the dividend for "dividend_too_small/divisor_eq_zero".
+// POST_PROCESS_1: If "dividend_too_small/divisor_eq_zero", we should not do any r_shift. Because we have already put dividend into the correct position
 // in PRE_PROCESS_1.
-assign post_r_shift_num = fsm_q[FSM_PRE_1_BIT] ? dividend_lzc_q : ((dividend_too_small_q | ys_zero) ? {(LZC_WIDTH){1'b0}} : divisor_lzc_q);
+assign post_r_shift_num = fsm_q[FSM_PRE_1_BIT] ? dividend_lzc_q : ((dividend_too_small_q | divisor_eq_zero) ? {(LZC_WIDTH){1'b0}} : divisor_lzc_q);
 assign post_r_shift_data_in = fsm_q[FSM_PRE_1_BIT] ? dividend_abs_q[WIDTH-1:0] : pre_shifted_rem[WIDTH-1:0];
 assign post_r_shift_extend_msb = fsm_q[FSM_POST_1_BIT] & rem_sign_q & pre_shifted_rem[WIDTH];
 
@@ -263,21 +234,18 @@ else begin
 	assign post_r_shift_res_s5 = post_r_shift_res_s4;
 end
 endgenerate
-// ================================================================================================================================================
+
 // Global Inverters to save area.
-// ================================================================================================================================================
 // FSM_IDLE_ABS: Get the inversed value of x.
-// FSM_POST_PROCESS_0: Get the inversed value of iter_quot.
-assign inverter_in[0] = fsm_q[FSM_IDLE_ABS_BIT] ? x : iter_quot_q;
+// FSM_POST_PROCESS: Get the inversed value of quo_iter.
+assign inverter_in[0] = fsm_q[FSM_IDLE_ABS_BIT] ? x : quo_iter_q;
 assign inverter_res[0] = -inverter_in[0];
 // FSM_IDLE_ABS: Get the inversed value of y.
-// FSM_POST_PROCESS_0: Get the inversed value of iter_quot_minus_1.
-assign inverter_in[1] = fsm_q[FSM_IDLE_ABS_BIT] ? y : iter_quot_minus_1_q;
+// FSM_POST_PROCESS: Get the inversed value of quo_m1_iter.
+assign inverter_in[1] = fsm_q[FSM_IDLE_ABS_BIT] ? y : quo_m1_iter_q;
 assign inverter_res[1] = -inverter_in[1];
 
-// ================================================================================================================================================
 // Calculate ABS
-// ================================================================================================================================================
 assign dividend_sign 	= div_signed & x[WIDTH-1];
 assign divisor_sign 	= div_signed & y[WIDTH-1];
 assign dividend_abs 	= dividend_sign ? inverter_res[0] : x;
@@ -285,36 +253,33 @@ assign divisor_abs 		= divisor_sign ? inverter_res[1] : y;
 
 assign dividend_abs_en 	= div_start_handshaked | fsm_q[FSM_PRE_0_BIT] | fsm_q[FSM_POST_0_BIT];
 assign divisor_abs_en  	= div_start_handshaked | fsm_q[FSM_PRE_0_BIT] | fsm_q[FSM_POST_0_BIT];
-// In PRE_PROCESS_1, if we find "ys_zero", we should force quot_sign = 0 -> We can get final_quot = {(WIDTH){1'b1}};
-assign quot_sign_en 	= div_start_handshaked | (fsm_q[FSM_PRE_1_BIT] & ys_zero);
-assign rem_sign_en 		= div_start_handshaked;
-assign quot_sign_d 		= fsm_q[FSM_IDLE_ABS_BIT] ? (dividend_sign ^ divisor_sign) : 1'b0;
-assign rem_sign_d 		= dividend_sign;
+// In PRE_PROCESS_1, if we find "divisor_eq_zero", we should force quo_sign = 0 -> We can get final_quo = {(WIDTH){1'b1}};
+assign quo_sign_en = div_start_handshaked | (fsm_q[FSM_PRE_1_BIT] & divisor_eq_zero);
+assign rem_sign_en = div_start_handshaked;
+assign quo_sign_d = fsm_q[FSM_IDLE_ABS_BIT] ? (dividend_sign ^ divisor_sign) : 1'b0;
+assign rem_sign_d = dividend_sign;
 
 assign dividend_abs_d = 
   ({(WIDTH + 1){fsm_q[FSM_IDLE_ABS_BIT]}} 	& {1'b0, dividend_abs})
 | ({(WIDTH + 1){fsm_q[FSM_PRE_0_BIT]}} 		& {1'b0, normalized_dividend})
-| ({(WIDTH + 1){fsm_q[FSM_POST_0_BIT]}} 	& nrdnt_rem_nxt[3 +: (WIDTH + 1)]);
+| ({(WIDTH + 1){fsm_q[FSM_POST_0_BIT]}} 	& nr_rem_nxt[5 +: (WIDTH + 1)]);
 assign divisor_abs_d = 
   ({(WIDTH + 1){fsm_q[FSM_IDLE_ABS_BIT]}} 	& {1'b0, divisor_abs})
 | ({(WIDTH + 1){fsm_q[FSM_PRE_0_BIT]}} 		& {1'b0, normalized_divisor})
-| ({(WIDTH + 1){fsm_q[FSM_POST_0_BIT]}} 	& nrdnt_rem_plus_d_nxt[3 +: (WIDTH + 1)]);
+| ({(WIDTH + 1){fsm_q[FSM_POST_0_BIT]}} 	& nr_rem_plus_d_nxt[5 +: (WIDTH + 1)]);
 
 always @(posedge div_clk) begin
 	if(dividend_abs_en)
 		dividend_abs_q <= dividend_abs_d;
 	if(divisor_abs_en)
 		divisor_abs_q <= divisor_abs_d;
-	if(quot_sign_en)
-		quot_sign_q <= quot_sign_d;
+	if(quo_sign_en)
+		quo_sign_q <= quo_sign_d;
 	if(rem_sign_en)
 		rem_sign_q <= rem_sign_d;
 end
 
-// ================================================================================================================================================
 // LZC and Normalize
-// ================================================================================================================================================
-// Use the open-source LZC from ETH Zurich, University of Bologna.
 lzc #(
 	.WIDTH(WIDTH),
 	// 0: trailing zero.
@@ -350,9 +315,7 @@ always @(posedge div_clk) begin
 		divisor_lzc_q <= divisor_lzc_d;
 end
 
-// ================================================================================================================================================
 // Choose the parameters for CMP, according to the value of the normalized_d[(WIDTH - 2) -: 3]
-// ================================================================================================================================================
 assign qds_para_neg_1_en = fsm_q[FSM_PRE_1_BIT];
 // For "normalized_d[(WIDTH - 2) -: 3]",
 // 000: m[-1] = -13, -m[-1] = +13 = 00_1101 -> ext(-m[-1]) = 00_11010
@@ -436,7 +399,6 @@ assign qds_para_pos_2_d =
 | ({(5){divisor_abs_q[(WIDTH - 2) -: 3] == 3'b111}} & 5'b0_1010);
 
 assign special_divisor_en = fsm_q[FSM_PRE_1_BIT];
-// assign special_divisor_d = (divisor_abs_q[(WIDTH - 2) -: 3] == 3'b000);
 assign special_divisor_d = (divisor_abs_q[(WIDTH - 2) -: 3] == 3'b000) | (divisor_abs_q[(WIDTH - 2) -: 3] == 3'b100);
 always @(posedge div_clk) begin
 	if(qds_para_neg_1_en)
@@ -451,9 +413,7 @@ always @(posedge div_clk) begin
 		special_divisor_q <= special_divisor_d;
 end
 
-// ================================================================================================================================================
 // Get iter_num, and some initial value for different regs.
-// ================================================================================================================================================
 assign lzc_diff_slow = {1'b0, divisor_lzc[0 +: LZC_WIDTH]} - {1'b0, dividend_lzc[0 +: LZC_WIDTH]};
 assign lzc_diff_fast = {1'b0, divisor_lzc_q[0 +: LZC_WIDTH]} - {1'b0, dividend_lzc_q[0 +: LZC_WIDTH]};
 
@@ -464,42 +424,47 @@ always @(posedge div_clk)
 	if(dividend_too_small_en)
 		dividend_too_small_q <= dividend_too_small_d;
 
-assign ys_zero = divisor_lzc_q[LZC_WIDTH];
-assign ys_one = (divisor_lzc[LZC_WIDTH-1:0] == {(LZC_WIDTH){1'b1}});
-// iter_num = ceil((lzc_diff + 2) / 2);
+assign divisor_eq_zero = divisor_lzc_q[LZC_WIDTH];
+assign divisor_eq_one = (divisor_lzc[LZC_WIDTH-1:0] == {(LZC_WIDTH){1'b1}});
+// iter_num = ceil((lzc_diff + 2) / 4);
 // Take "WIDTH = 32" as an example, lzc_diff = 
-//  0 -> iter_num =  1, actual_r_shift_num = 0;
-//  1 -> iter_num =  2, actual_r_shift_num = 1;
-//  2 -> iter_num =  2, actual_r_shift_num = 0;
-//  3 -> iter_num =  3, actual_r_shift_num = 1;
-//  4 -> iter_num =  3, actual_r_shift_num = 0;
-//  5 -> iter_num =  4, actual_r_shift_num = 1;
-//  6 -> iter_num =  4, actual_r_shift_num = 0;
+//  0 -> iter_num = 1, actual_r_shift_num = 2;
+//  1 -> iter_num = 1, actual_r_shift_num = 1;
+//  2 -> iter_num = 1, actual_r_shift_num = 0;
+//  3 -> iter_num = 2, actual_r_shift_num = 3;
+//  4 -> iter_num = 2, actual_r_shift_num = 2;
+//  5 -> iter_num = 2, actual_r_shift_num = 1;
+//  6 -> iter_num = 2, actual_r_shift_num = 0;
 // ...
-// 28 -> iter_num = 15, actual_r_shift_num = 0;
-// 29 -> iter_num = 16, actual_r_shift_num = 1;
-// 30 -> iter_num = 16, actual_r_shift_num = 0;
-// 31 -> iter_num = 17, actual_r_shift_num = 1, avoid this !!!!
-// Therefore, max(iter_num) = 16 -> We only need "4-bit Reg" to remember the "iter_num".
+// 28 -> iter_num = 8, actual_r_shift_num = 2;
+// 29 -> iter_num = 8, actual_r_shift_num = 1;
+// 30 -> iter_num = 8, actual_r_shift_num = 0;
+// 31 -> iter_num = 9, actual_r_shift_num = 3, avoid this !!!!
+// Therefore, max(iter_num) = 8 -> We only need "3-bit Reg" to remember the "iter_num".
 // If (lzc_diff == 31) -> Q = x, R = 0.
 assign no_iter_needed_en = fsm_q[FSM_PRE_0_BIT];
-assign no_iter_needed_d = ys_one & dividend_abs_q[WIDTH-1];
+assign no_iter_needed_d = divisor_eq_one & dividend_abs_q[WIDTH-1];
 always @(posedge div_clk)
 	if(no_iter_needed_en)
 		no_iter_needed_q <= no_iter_needed_d;
 
-assign r_shift_num = lzc_diff_fast[0];
-// In the Retiming design, we need to do 2-bit r_shift before the ITER.
-assign rem_sum_normal_init_value = {3'b0, r_shift_num ? {1'b0, dividend_abs_q[WIDTH-1:0]} : {dividend_abs_q[WIDTH-1:0], 1'b0}};
-
-// ys_zero/dividend_too_small: Put the dividend at the suitable position. So we can get the correct R in POST_PROCESS_1.
-assign rem_sum_init_value = (dividend_too_small_q | ys_zero) ? {1'b0, post_r_shift_res_s5, 3'b0} : no_iter_needed_q ? {(ITN_WIDTH){1'b0}} : 
+// TO save a FA, use "lzc_diff[1:0]" to express "r_shift_num";
+assign r_shift_num = lzc_diff_fast[1:0];
+assign rem_sum_normal_init_value = {
+	3'b0, 
+	  {(WIDTH + 3){r_shift_num == 2'd0}} & {2'b0, 	dividend_abs_q[WIDTH-1:0], 1'b0	}
+	| {(WIDTH + 3){r_shift_num == 2'd1}} & {1'b0, 	dividend_abs_q[WIDTH-1:0], 2'b0	}
+	| {(WIDTH + 3){r_shift_num == 2'd2}} & {		dividend_abs_q[WIDTH-1:0], 3'b0	}
+	| {(WIDTH + 3){r_shift_num == 2'd3}} & {3'b0,	dividend_abs_q[WIDTH-1:0]		}
+};
+assign rem_carry_init_value = {(ITN_W){1'b0}};
+// divisor_eq_zero/dividend_too_small: Put the dividend at the suitable position. So we can get the correct R in POST_PROCESS_1.
+assign rem_sum_init_value = (dividend_too_small_q | divisor_eq_zero) ? {1'b0, post_r_shift_res_s5, 5'b0} : no_iter_needed_q ? {(ITN_W){1'b0}} : 
 rem_sum_normal_init_value;
-assign rem_carry_init_value = {(ITN_WIDTH){1'b0}};
 
-// For "rem_sum_normal_init_value = normalized_dividend >> 2 >> r_shift_num", the decimal point is between "[ITN_WIDTH-1]" and "[ITN_WIDTH-2]".
-// According to the paper, we should use "(4 * rem_sum_normal_init_value)_trunc_1_4" to choose the 1st quot before the ITER.
-assign pre_rem_trunc_1_4 = {1'b0, rem_sum_normal_init_value[(ITN_WIDTH - 4) -: 4]};
+// For "rem_sum_normal_init_value = (normalized_dividend >> 2 >> r_shift_num)", the decimal point is between "[ITN_W-1]" and "[ITN_W-2]".
+// According to the paper, we should use "(4 * rem_sum_normal_init_value)_trunc_1_4" to choose the 1st quo.
+assign pre_rem_trunc_1_4 = {1'b0, rem_sum_normal_init_value[(ITN_W - 4) -: 4]};
 // For "normalized_d[(WIDTH - 2) -: 3]",
 // 000: m[+1] =  +4 = 0_0100;
 // 001: m[+1] =  +4 = 0_0100;
@@ -537,60 +502,64 @@ assign pre_m_pos_2 =
 | ({(5){divisor_abs_q[(WIDTH - 2) -: 3] == 3'b101}} & 5'b1_0100)
 | ({(5){divisor_abs_q[(WIDTH - 2) -: 3] == 3'b110}} & 5'b1_0110)
 | ({(5){divisor_abs_q[(WIDTH - 2) -: 3] == 3'b111}} & 5'b1_0110);
-// The REM must be positive in PRE_PROCESS_1, so we only need to compare it with m[+1]/m[+2]. The 5-bit CMP should be very fast.
+// REM must be positive in PRE_PROCESS_1, so we only need to compare it with m[+1]/m[+2]. The 5-bit CMP should be fast enough.
 assign pre_cmp_res = {(pre_rem_trunc_1_4 >= pre_m_pos_1), (pre_rem_trunc_1_4 >= pre_m_pos_2)};
-assign prev_quot_digit_init_value = pre_cmp_res[0] ? QUOT_ONEHOT_POS_2 : pre_cmp_res[1] ? QUOT_ONEHOT_POS_1 : QUOT_ONEHOT_ZERO;
-assign prev_quot_digit_en = fsm_q[FSM_PRE_1_BIT] | fsm_q[FSM_ITER_BIT];
-assign prev_quot_digit_d = fsm_q[FSM_PRE_1_BIT] ? prev_quot_digit_init_value : quot_digit_iter_end;
+assign prev_quo_digit_init_value = pre_cmp_res[0] ? QUO_ONEHOT_POS_2 : pre_cmp_res[1] ? QUO_ONEHOT_POS_1 : QUO_ONEHOT_ZERO;
+assign prev_quo_digit_en = fsm_q[FSM_PRE_1_BIT] | fsm_q[FSM_ITER_BIT];
+assign prev_quo_digit_d = fsm_q[FSM_PRE_1_BIT] ? prev_quo_digit_init_value : quo_digit_nxt;
 always @(posedge div_clk)
-	if(prev_quot_digit_en)
-		prev_quot_digit_q <= prev_quot_digit_d;
+	if(prev_quo_digit_en)
+		prev_quo_digit_q <= prev_quo_digit_d;
 
-// ================================================================================================================================================
 // Let's do SRT ITER !!!!!
-// ================================================================================================================================================
-// On the Fly Conversion (OFC/OTFC).
-assign iter_quot_nxt = 
-  ({(WIDTH){prev_quot_digit_q[QUOT_POS_2]}} & {iter_quot_q			[WIDTH-3:0], 2'b10})
-| ({(WIDTH){prev_quot_digit_q[QUOT_POS_1]}} & {iter_quot_q			[WIDTH-3:0], 2'b01})
-| ({(WIDTH){prev_quot_digit_q[QUOT_ZERO ]}} & {iter_quot_q			[WIDTH-3:0], 2'b00})
-| ({(WIDTH){prev_quot_digit_q[QUOT_NEG_1]}} & {iter_quot_minus_1_q	[WIDTH-3:0], 2'b11})
-| ({(WIDTH){prev_quot_digit_q[QUOT_NEG_2]}} & {iter_quot_minus_1_q	[WIDTH-3:0], 2'b10});
-assign iter_quot_minus_1_nxt = 
-  ({(WIDTH){prev_quot_digit_q[QUOT_POS_2]}} & {iter_quot_q			[WIDTH-3:0], 2'b01})
-| ({(WIDTH){prev_quot_digit_q[QUOT_POS_1]}} & {iter_quot_q			[WIDTH-3:0], 2'b00})
-| ({(WIDTH){prev_quot_digit_q[QUOT_ZERO ]}} & {iter_quot_minus_1_q	[WIDTH-3:0], 2'b11})
-| ({(WIDTH){prev_quot_digit_q[QUOT_NEG_1]}} & {iter_quot_minus_1_q	[WIDTH-3:0], 2'b10})
-| ({(WIDTH){prev_quot_digit_q[QUOT_NEG_2]}} & {iter_quot_minus_1_q	[WIDTH-3:0], 2'b01});
-assign iter_quot_en 		= fsm_q[FSM_PRE_1_BIT] | fsm_q[FSM_ITER_BIT] | fsm_q[FSM_POST_0_BIT];
-assign iter_quot_minus_1_en = fsm_q[FSM_PRE_1_BIT] | fsm_q[FSM_ITER_BIT] | fsm_q[FSM_POST_0_BIT];
+r16_block #(
+	.WIDTH(WIDTH),
+	.ITN_W(ITN_W),
+	.QUO_ONEHOT_WIDTH(QUO_ONEHOT_WIDTH)
+) u_r16_block (
+	.rem_sum_i(rem_sum_q),
+	.rem_carry_i(rem_carry_q),
+	.rem_sum_o(rem_sum_nxt),
+	.rem_carry_o(rem_carry_nxt),
+	.divisor_i(divisor_abs_q[WIDTH-1:0]),
+	.qds_para_neg_1_i(qds_para_neg_1_q),
+	.qds_para_neg_0_i(qds_para_neg_0_q),
+	.qds_para_pos_1_i(qds_para_pos_1_q),
+	.qds_para_pos_2_i(qds_para_pos_2_q),
+	.special_divisor_i(special_divisor_q),
+	.quo_iter_i(quo_iter_q),
+	.quo_m1_iter_i(quo_m1_iter_q),
+	.quo_iter_o(quo_iter_nxt),
+	.quo_m1_iter_o(quo_m1_iter_nxt),
+	.prev_quo_digit_i(prev_quo_digit_q),
+	.quo_digit_o(quo_digit_nxt)
+);
 
-// When "ys_zero", the QUO should be ALL 1s.
-assign iter_quot_d = fsm_q[FSM_PRE_1_BIT] ? (ys_zero ? {(WIDTH){1'b1}} : no_iter_needed_q ? dividend_abs_q[WIDTH-1:0] : {(WIDTH){1'b0}}) : 
-fsm_q[FSM_ITER_BIT] ? iter_quot_nxt : (quot_sign_q ? inverter_res[0] : iter_quot_q);
-
-assign iter_quot_minus_1_d = fsm_q[FSM_PRE_1_BIT] ? {(WIDTH){1'b0}} : fsm_q[FSM_ITER_BIT] ? iter_quot_minus_1_nxt :
-(quot_sign_q ? inverter_res[1] : iter_quot_minus_1_q);
-
+assign quo_iter_en 		= fsm_q[FSM_PRE_1_BIT] | fsm_q[FSM_ITER_BIT] | fsm_q[FSM_POST_0_BIT];
+assign quo_m1_iter_en 	= fsm_q[FSM_PRE_1_BIT] | fsm_q[FSM_ITER_BIT] | fsm_q[FSM_POST_0_BIT];
+// When "divisor_eq_zero", the final Q should be ALL'1s
+assign quo_iter_d = fsm_q[FSM_PRE_1_BIT] ? (divisor_eq_zero ? {(WIDTH){1'b1}} : no_iter_needed_q ? dividend_abs_q[WIDTH-1:0] : {(WIDTH){1'b0}}) : 
+(fsm_q[FSM_POST_0_BIT] ? (quo_sign_q ? inverter_res[0] : quo_iter_q) : quo_iter_nxt);
+assign quo_m1_iter_d = fsm_q[FSM_PRE_1_BIT] ? {(WIDTH){1'b0}} : (fsm_q[FSM_POST_0_BIT] ? (quo_sign_q ? inverter_res[1] : quo_m1_iter_q) : quo_m1_iter_nxt);
 always @(posedge div_clk) begin
-	if(iter_quot_en)
-		iter_quot_q <= iter_quot_d;
-	if(iter_quot_minus_1_en)
-		iter_quot_minus_1_q <= iter_quot_minus_1_d;
+	if(quo_iter_en)
+		quo_iter_q <= quo_iter_d;
+	if(quo_m1_iter_en)
+		quo_m1_iter_q <= quo_m1_iter_d;
 end
 
-assign final_iter = (iter_num_q == {(LZC_WIDTH - 1){1'b0}});
+assign final_iter = (iter_num_q == {(LZC_WIDTH - 2){1'b0}});
 assign iter_num_en = fsm_q[FSM_PRE_1_BIT] | fsm_q[FSM_ITER_BIT];
-assign iter_num_d = fsm_q[FSM_PRE_1_BIT] ? (lzc_diff_fast[LZC_WIDTH - 1:1] + {{(LZC_WIDTH - 2){1'b0}}, lzc_diff_fast[0]}) : 
-(iter_num_q - {{(LZC_WIDTH - 2){1'b0}}, 1'b1});
+assign iter_num_d = fsm_q[FSM_PRE_1_BIT] ? (lzc_diff_fast[LZC_WIDTH - 1:2] + {{(LZC_WIDTH - 3){1'b0}}, &lzc_diff_fast[1:0]}) : 
+(iter_num_q - {{(LZC_WIDTH - 3){1'b0}}, 1'b1});
 always @(posedge div_clk)
 	if(iter_num_en)
 		iter_num_q <= iter_num_d;
 
 assign rem_sum_en 		= fsm_q[FSM_PRE_1_BIT] | fsm_q[FSM_ITER_BIT];
-assign rem_sum_d	 	= fsm_q[FSM_PRE_1_BIT] ? rem_sum_init_value : rem_sum_iter_end;
+assign rem_sum_d	 	= fsm_q[FSM_PRE_1_BIT] ? rem_sum_init_value : rem_sum_nxt;
 assign rem_carry_en 	= fsm_q[FSM_PRE_1_BIT] | fsm_q[FSM_ITER_BIT];
-assign rem_carry_d 		= fsm_q[FSM_PRE_1_BIT] ? rem_carry_init_value : rem_carry_iter_end;
+assign rem_carry_d 		= fsm_q[FSM_PRE_1_BIT] ? rem_carry_init_value : rem_carry_nxt;
 always @(posedge div_clk) begin
 	if(rem_sum_en)
 		rem_sum_q <= rem_sum_d;
@@ -598,60 +567,25 @@ always @(posedge div_clk) begin
 		rem_carry_q <= rem_carry_d;
 end
 
-radix_4_qds_v1 #(
-	.WIDTH(WIDTH)
-) u_qds (
-	.rem_sum_i(rem_sum_q),
-	.rem_carry_i(rem_carry_q),
-	.divisor_i(divisor_abs_q[WIDTH-1:0]),
-	.qds_para_neg_1_i(qds_para_neg_1_q),
-	.qds_para_neg_0_i(qds_para_neg_0_q),
-	.qds_para_pos_1_i(qds_para_pos_1_q),
-	.qds_para_pos_2_i(qds_para_pos_2_q),
-	.special_divisor_i(special_divisor_q),
-	.prev_quot_digit_i(prev_quot_digit_q),
-	.quot_digit_o(quot_digit_iter_end)
-);
-
-assign csa_3_2_x1 = {rem_sum_q  [0 +: (ITN_WIDTH - 2)], 2'b0};
-assign csa_3_2_x2 = {rem_carry_q[0 +: (ITN_WIDTH - 2)], 2'b0};
-assign csa_3_2_x3 = 
-  ({(ITN_WIDTH){prev_quot_digit_q[QUOT_NEG_2]}} & {divisor_abs_q[WIDTH-1:0], 4'b0})
-| ({(ITN_WIDTH){prev_quot_digit_q[QUOT_NEG_1]}} & {1'b0, divisor_abs_q[WIDTH-1:0], 3'b0})
-| ({(ITN_WIDTH){prev_quot_digit_q[QUOT_POS_1]}} & ~{1'b0, divisor_abs_q[WIDTH-1:0], 3'b0})
-| ({(ITN_WIDTH){prev_quot_digit_q[QUOT_POS_2]}} & ~{divisor_abs_q[WIDTH-1:0], 4'b0});
-compressor_3_2 #(
-	.WIDTH(ITN_WIDTH)
-) u_csa_3_2 (
-	.x1(csa_3_2_x1),
-	.x2(csa_3_2_x2),
-	.x3(csa_3_2_x3),
-	.sum_o(rem_sum_iter_end),
-	.carry_o({rem_carry_iter_end[1 +: (ITN_WIDTH - 1)], csa_3_2_carry_unused})
-);
-assign rem_carry_iter_end[0] = (prev_quot_digit_q[QUOT_POS_1] | prev_quot_digit_q[QUOT_POS_2]);
-
-// ================================================================================================================================================
 // Post Process
-// ================================================================================================================================================
 // If(rem <= 0), 
 // rem = (-rem_sum) + (-rem_carry) = ~rem_sum + ~rem_carry + 2'b10;
 // If(rem <= 0), 
 // rem_plus_d = ~rem_sum + ~rem_carry + ~normalized_d + 2'b11;
-assign nrdnt_rem_nxt = 
-  ({(ITN_WIDTH){rem_sign_q}} ^ rem_sum_q)
-+ ({(ITN_WIDTH){rem_sign_q}} ^ rem_carry_q)
-+ {{(ITN_WIDTH - 2){1'b0}}, rem_sign_q, 1'b0};
+assign nr_rem_nxt = 
+  ({(ITN_W){rem_sign_q}} ^ rem_sum_q)
++ ({(ITN_W){rem_sign_q}} ^ rem_carry_q)
++ {{(ITN_W - 2){1'b0}}, rem_sign_q, 1'b0};
 
-assign nrdnt_rem_plus_d_nxt = 
-  ({(ITN_WIDTH){rem_sign_q}} ^ rem_sum_q)
-+ ({(ITN_WIDTH){rem_sign_q}} ^ rem_carry_q)
-+ ({(ITN_WIDTH){rem_sign_q}} ^ {1'b0, divisor_abs_q[WIDTH-1:0], 3'b0})
-+ {{(ITN_WIDTH - 2){1'b0}}, rem_sign_q, rem_sign_q};
+assign nr_rem_plus_d_nxt = 
+  ({(ITN_W){rem_sign_q}} ^ rem_sum_q)
++ ({(ITN_W){rem_sign_q}} ^ rem_carry_q)
++ ({(ITN_W){rem_sign_q}} ^ {1'b0, divisor_abs_q[WIDTH-1:0], 5'b0})
++ {{(ITN_W - 2){1'b0}}, rem_sign_q, rem_sign_q};
 
-assign nrdnt_rem 			= dividend_abs_q;
-assign nrdnt_rem_plus_d 	= divisor_abs_q;
-assign nrdnt_rem_is_zero 	= ~(|nrdnt_rem);
+assign nr_rem 			= dividend_abs_q;
+assign nr_rem_plus_d 	= divisor_abs_q;
+assign nr_rem_is_zero 	= ~(|nr_rem);
 // Let's assume:
 // quo/quo_pre is the ABS value.
 // If (rem >= 0), 
@@ -660,19 +594,14 @@ assign nrdnt_rem_is_zero 	= ~(|nrdnt_rem);
 // If (rem <= 0), 
 // need_corr = 0 <-> "rem_pre" belongs to (-D,  0], quo = quo_pre - 0, rem = (rem_pre - 0) >> divisor_lzc;
 // need_corr = 1 <-> "rem_pre" belongs to ( 0, +D), quo = quo_pre - 1, rem = (rem_pre - D) >> divisor_lzc;
-assign need_corr = (~ys_zero & ~no_iter_needed_q) & (rem_sign_q ? (~nrdnt_rem[WIDTH] & ~nrdnt_rem_is_zero) : nrdnt_rem[WIDTH]);
-assign pre_shifted_rem = need_corr ? nrdnt_rem_plus_d : nrdnt_rem;
+assign need_corr = (~divisor_eq_zero & ~no_iter_needed_q) & (rem_sign_q ? (~nr_rem[WIDTH] & ~nr_rem_is_zero) : nr_rem[WIDTH]);
+assign pre_shifted_rem = need_corr ? nr_rem_plus_d : nr_rem;
 assign final_rem = post_r_shift_res_s5;
-assign final_quot = need_corr ? iter_quot_minus_1_q : iter_quot_q;
+assign final_quo = need_corr ? quo_m1_iter_q : quo_iter_q;
 
-// ================================================================================================================================================
 // output signals
-// ================================================================================================================================================
-
-assign div_start_ready_o = fsm_q[FSM_IDLE_ABS_BIT];
 assign complete = fsm_q[FSM_POST_1_BIT];
-//assign ys_zero_o = ys_zero;
-assign s = final_quot;
+assign s = final_quo;
 assign r = final_rem;
 
 
