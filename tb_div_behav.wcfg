@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wave_config>
+   <wave_state>
+   </wave_state>
+   <db_ref_list>
+      <db_ref path="tb_div_behav.wdb" id="1">
+         <top_modules>
+            <top_module name="glbl" />
+            <top_module name="tb_div" />
+         </top_modules>
+      </db_ref>
+   </db_ref_list>
+   <zoom_setting>
+      <ZoomStartTime time="0.000 ns"></ZoomStartTime>
+      <ZoomEndTime time="1,000.001 ns"></ZoomEndTime>
+      <Cursor1Time time="1,000.000 ns"></Cursor1Time>
+   </zoom_setting>
+   <column_width_setting>
+      <NameColumnWidth column_width="256"></NameColumnWidth>
+      <ValueColumnWidth column_width="450"></ValueColumnWidth>
+   </column_width_setting>
+   <WVObjectSize size="30" />
+   <wvobject fp_name="/tb_div/div_clk" type="logic">
+      <obj_property name="ElementShortName">div_clk</obj_property>
+      <obj_property name="ObjectShortName">div_clk</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_div/resetn" type="logic">
+      <obj_property name="ElementShortName">resetn</obj_property>
+      <obj_property name="ObjectShortName">resetn</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_div/div" type="logic">
+      <obj_property name="ElementShortName">div</obj_property>
+      <obj_property name="ObjectShortName">div</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_div/div_signed" type="logic">
+      <obj_property name="ElementShortName">div_signed</obj_property>
+      <obj_property name="ObjectShortName">div_signed</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_div/x" type="array">
+      <obj_property name="ElementShortName">x[31:0]</obj_property>
+      <obj_property name="ObjectShortName">x[31:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_div/y" type="array">
+      <obj_property name="ElementShortName">y[31:0]</obj_property>
+      <obj_property name="ObjectShortName">y[31:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_div/s" type="array">
+      <obj_property name="ElementShortName">s[31:0]</obj_property>
+      <obj_property name="ObjectShortName">s[31:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_div/r" type="array">
+      <obj_property name="ElementShortName">r[31:0]</obj_property>
+      <obj_property name="ObjectShortName">r[31:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_div/complete" type="logic">
+      <obj_property name="ElementShortName">complete</obj_property>
+      <obj_property name="ObjectShortName">complete</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_div/div_is_run" type="logic">
+      <obj_property name="ElementShortName">div_is_run</obj_property>
+      <obj_property name="ObjectShortName">div_is_run</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_div/wait_clk" type="array">
+      <obj_property name="ElementShortName">wait_clk[31:0]</obj_property>
+      <obj_property name="ObjectShortName">wait_clk[31:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_div/x_signed" type="logic">
+      <obj_property name="ElementShortName">x_signed</obj_property>
+      <obj_property name="ObjectShortName">x_signed</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_div/y_signed" type="logic">
+      <obj_property name="ElementShortName">y_signed</obj_property>
+      <obj_property name="ObjectShortName">y_signed</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_div/x_abs" type="array">
+      <obj_property name="ElementShortName">x_abs[31:0]</obj_property>
+      <obj_property name="ObjectShortName">x_abs[31:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_div/y_abs" type="array">
+      <obj_property name="ElementShortName">y_abs[31:0]</obj_property>
+      <obj_property name="ObjectShortName">y_abs[31:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_div/s_ref_signed" type="logic">
+      <obj_property name="ElementShortName">s_ref_signed</obj_property>
+      <obj_property name="ObjectShortName">s_ref_signed</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_div/r_ref_signed" type="logic">
+      <obj_property name="ElementShortName">r_ref_signed</obj_property>
+      <obj_property name="ObjectShortName">r_ref_signed</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_div/s_ref_abs" type="array">
+      <obj_property name="ElementShortName">s_ref_abs[31:0]</obj_property>
+      <obj_property name="ObjectShortName">s_ref_abs[31:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_div/r_ref_abs" type="array">
+      <obj_property name="ElementShortName">r_ref_abs[31:0]</obj_property>
+      <obj_property name="ObjectShortName">r_ref_abs[31:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_div/s_ref" type="array">
+      <obj_property name="ElementShortName">s_ref[31:0]</obj_property>
+      <obj_property name="ObjectShortName">s_ref[31:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_div/r_ref" type="array">
+      <obj_property name="ElementShortName">r_ref[31:0]</obj_property>
+      <obj_property name="ObjectShortName">r_ref[31:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_div/s_ok" type="logic">
+      <obj_property name="ElementShortName">s_ok</obj_property>
+      <obj_property name="ObjectShortName">s_ok</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_div/r_ok" type="logic">
+      <obj_property name="ElementShortName">r_ok</obj_property>
+      <obj_property name="ObjectShortName">r_ok</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_div/time_out" type="array">
+      <obj_property name="ElementShortName">time_out[5:0]</obj_property>
+      <obj_property name="ObjectShortName">time_out[5:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_div/x_d" type="array">
+      <obj_property name="ElementShortName">x_d[32:0]</obj_property>
+      <obj_property name="ObjectShortName">x_d[32:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_div/y_d" type="array">
+      <obj_property name="ElementShortName">y_d[32:0]</obj_property>
+      <obj_property name="ObjectShortName">y_d[32:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_div/s_d" type="array">
+      <obj_property name="ElementShortName">s_d[32:0]</obj_property>
+      <obj_property name="ObjectShortName">s_d[32:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_div/r_d" type="array">
+      <obj_property name="ElementShortName">r_d[32:0]</obj_property>
+      <obj_property name="ObjectShortName">r_d[32:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_div/s_ref_d" type="array">
+      <obj_property name="ElementShortName">s_ref_d[32:0]</obj_property>
+      <obj_property name="ObjectShortName">s_ref_d[32:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_div/r_ref_d" type="array">
+      <obj_property name="ElementShortName">r_ref_d[32:0]</obj_property>
+      <obj_property name="ObjectShortName">r_ref_d[32:0]</obj_property>
+   </wvobject>
+</wave_config>
