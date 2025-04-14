@@ -1,0 +1,13 @@
+# work directory
+set TOPDIR 		[sh pwd]
+# source files directory
+set topDir 		"$TOPDIR/rtl"
+# output files directory
+set reportsDir  "$TOPDIR/reports"
+set netlistDir 	"$TOPDIR/netlist"
+set svfDir 		"$TOPDIR/svf"
+
+set hdlin_dwroot [getenv HDLIN_DWROOT]
+set search_path ". ./lib/SMIC18_Ver2.7/FEView_STDIO/STD/Synopsys/ ./lib/SMIC18_Ver2.7/FEView_STDIO/IO/Synopsys/ ./netlist ./rtl ./lib/SMIC18_Ver2.7/FEView_STDIO/STD/Verilog/ ./lib/SMIC18_Ver2.7/FEView_STDIO/IO/Verilog/"
+# set hdlin_unresolved_modules black_box
+set sh_source_uses_search_path true
