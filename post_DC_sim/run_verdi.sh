@@ -1,0 +1,1 @@
+verdi -2001 -f vlog.args -ssf div_tb.fsdb

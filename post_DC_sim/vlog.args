@@ -1,0 +1,21 @@
++libext+.v
++vlog01compat
++acc
+
++define+DUMP_FSDB
++define+POST_DC
+
+-y ../div.srcs/sources_1/imports
+-work work
+
+../DC/netlist/div_ASIC.vg
+
+//PAD
+-v ../lib/SMIC18_Ver2.7/FEView_STDIO/IO/Verilog/smic18io_line.v
+//Stdcell
+-v ../lib/SMIC18_Ver2.7/FEView_STDIO/STD/Verilog/smic18.v
+
+//
+// Testbench files
+//
+../div.srcs/sim_1/imports/tb_vcs.v
