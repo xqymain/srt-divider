@@ -15,6 +15,25 @@ module div #(
 	input  resetn
 );
 
+reg div_reg;
+reg div_signed_reg;
+reg [WIDTH-1:0] x_reg;
+reg [WIDTH-1:0] y_reg;
+always @(posedge div_clk) begin
+    if (~resetn) begin
+		div_reg <= 1'b0;
+		div_signed_reg <= 1'b0;
+		x_reg <= (WIDTH-1)'b0;
+		y_reg <= 32'b0;
+	end
+    else begin
+		div_reg <= div;
+		div_signed_reg <= div_signed;
+		x_reg <= x;
+		y_reg <= y;
+	end
+end
+
 // localparams
 localparam FSM_WIDTH 			= 6;
 localparam FSM_IDLE_ABS_BIT	 	= 0;
@@ -177,13 +196,13 @@ wire [WIDTH-1:0] final_rem;
 wire [WIDTH-1:0] final_quo;
 
 
-assign div_start_handshaked = div & fsm_q[FSM_IDLE_ABS_BIT];
+assign div_start_handshaked = div_reg & fsm_q[FSM_IDLE_ABS_BIT];
 
 // FSM Ctrl wire
 always @(*) begin
 	case(fsm_q)
 		FSM_IDLE_ABS:
-			fsm_d = div ? FSM_PRE_PROCESS_0 : FSM_IDLE_ABS;
+			fsm_d = div_reg ? FSM_PRE_PROCESS_0 : FSM_IDLE_ABS;
 		FSM_PRE_PROCESS_0:
 			fsm_d = FSM_PRE_PROCESS_1;
 		FSM_PRE_PROCESS_1:
@@ -238,18 +257,18 @@ endgenerate
 // Global Inverters to save area.
 // FSM_IDLE_ABS: Get the inversed value of x.
 // FSM_POST_PROCESS: Get the inversed value of quo_iter.
-assign inverter_in[0] = fsm_q[FSM_IDLE_ABS_BIT] ? x : quo_iter_q;
+assign inverter_in[0] = fsm_q[FSM_IDLE_ABS_BIT] ? x_reg : quo_iter_q;
 assign inverter_res[0] = -inverter_in[0];
 // FSM_IDLE_ABS: Get the inversed value of y.
 // FSM_POST_PROCESS: Get the inversed value of quo_m1_iter.
-assign inverter_in[1] = fsm_q[FSM_IDLE_ABS_BIT] ? y : quo_m1_iter_q;
+assign inverter_in[1] = fsm_q[FSM_IDLE_ABS_BIT] ? y_reg : quo_m1_iter_q;
 assign inverter_res[1] = -inverter_in[1];
 
 // Calculate ABS
-assign dividend_sign 	= div_signed & x[WIDTH-1];
-assign divisor_sign 	= div_signed & y[WIDTH-1];
-assign dividend_abs 	= dividend_sign ? inverter_res[0] : x;
-assign divisor_abs 		= divisor_sign ? inverter_res[1] : y;
+assign dividend_sign 	= div_signed_reg & x_reg[WIDTH-1];
+assign divisor_sign 	= div_signed_reg & y_reg[WIDTH-1];
+assign dividend_abs 	= dividend_sign ? inverter_res[0] : x_reg;
+assign divisor_abs 		= divisor_sign ? inverter_res[1] : y_reg;
 
 assign dividend_abs_en 	= div_start_handshaked | fsm_q[FSM_PRE_0_BIT] | fsm_q[FSM_POST_0_BIT];
 assign divisor_abs_en  	= div_start_handshaked | fsm_q[FSM_PRE_0_BIT] | fsm_q[FSM_POST_0_BIT];

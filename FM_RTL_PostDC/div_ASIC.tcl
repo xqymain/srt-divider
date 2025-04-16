@@ -1,5 +1,5 @@
 date
-set TOP_MODULE div
+set TOP_MODULE div_ASIC
 set	search_path	"$search_path  $topDir "
 
 set 	synopsys_auto_setup 	true

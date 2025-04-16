@@ -14,9 +14,9 @@ set remove_tie_dont_use_switch [getenv remove_tie_dont_use_switch]
 
 # Define some variables for design -- {divider}
 #*****************************************************
-set TOP_MODULE           div
-set Rst_list		[list resetn]
-set Clk_list		[list div_clk]  
+set TOP_MODULE           div_ASIC
+set Rst_list		[list PAD_resetn_i]
+set Clk_list		[list PAD_div_clk_i]  
 
 set_svf         ${svfDir}/${TOP_MODULE}.svf
 
@@ -64,9 +64,9 @@ if { $remove_tie_dont_use_switch == "true" } {
 #*****************************************************
 current_design $TOP_MODULE
 
-create_clock -name main_clk -period $SYS_CLK_PERIOD -waveform [list 0 [expr $SYS_CLK_PERIOD /2]] [get_ports div_clk]
+create_clock -name main_clk -period $SYS_CLK_PERIOD -waveform [list 0 [expr $SYS_CLK_PERIOD /2]] [get_ports PAD_div_clk_i]
 set_dont_touch_network [all_clocks]
-set_ideal_network [get_ports div_clk]
+set_ideal_network [get_ports PAD_div_clk_i]
 set_dont_touch_network [get_ports "$Rst_list"]
 set_ideal_network [get_ports "$Rst_list"]
 
@@ -89,7 +89,7 @@ set_drive 0      [get_ports "$Clk_list"]
 
 #set_max_capacitance [expr $MAX_LOAD*12] [get_designs *]
 
-set_driving_cell -lib_cell INVHD2X [remove_from_collection [all_inputs] [get_ports [list div_clk resetn]]]
+set_driving_cell -lib_cell INVHD2X [remove_from_collection [all_inputs] [get_ports [list PAD_div_clk_i PAD_resetn_i]]]
 set_load [expr 3 * $MAX_LOAD] [all_outputs]
 
 #set_max_fanout 10 [all_inputs]
@@ -108,7 +108,7 @@ set_load [expr 3 * $MAX_LOAD] [all_outputs]
 #set_output_delay -max 5 -clock wb_clk $wb_out_ports
 #set_output_delay -min -1 -clock wb_clk $wb_out_ports
 
-set_input_delay [expr $SYS_CLK_PERIOD / 2] -clock main_clk [remove_from_collection [all_inputs] [get_ports [list div_clk resetn]]]
+set_input_delay [expr $SYS_CLK_PERIOD / 2] -clock main_clk [remove_from_collection [all_inputs] [get_ports [list PAD_div_clk_i PAD_resetn_i]]]
 set_output_delay [expr $SYS_CLK_PERIOD / 2] -clock main_clk [all_outputs]
 
 # false path
@@ -124,7 +124,7 @@ if { $power_switch == "true" } {
 }
 
 # don't touch
-#set_dont_touch       [get_cells U_* ]
+set_dont_touch       [get_cells U_* ]
 
 # Map and Optimize the design
 check_design
