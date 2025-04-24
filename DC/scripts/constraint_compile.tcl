@@ -89,7 +89,7 @@ set_drive 0      [get_ports "$Clk_list"]
 
 #set_max_capacitance [expr $MAX_LOAD*12] [get_designs *]
 
-set_driving_cell -lib_cell INVHD2X [remove_from_collection [all_inputs] [get_ports [list PAD_div_clk_i PAD_resetn_i]]]
+set_driving_cell -lib_cell PLBI8S [remove_from_collection [all_inputs] [get_ports [list PAD_div_clk_i PAD_resetn_i]]]
 set_load [expr 3 * $MAX_LOAD] [all_outputs]
 
 #set_max_fanout 10 [all_inputs]
