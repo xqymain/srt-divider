@@ -86,7 +86,7 @@ set MAX_LOAD    [load_of smic18_ss_1p62v_125c/INVHD4X/A]
 
 set_drive 0      [get_ports "$Rst_list"]
 set_drive 0      [get_ports "$Clk_list"]
-
+set_ideal_network [get_pins "pad_L_VSSH_POS/E3V"]
 #set_max_capacitance [expr $MAX_LOAD*12] [get_designs *]
 
 set_driving_cell -lib_cell PLBI8S [remove_from_collection [all_inputs] [get_ports [list PAD_div_clk_i PAD_resetn_i]]]
