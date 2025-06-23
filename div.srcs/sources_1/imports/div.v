@@ -23,7 +23,7 @@ always @(posedge div_clk) begin
     if (~resetn) begin
 		div_reg <= 1'b0;
 		div_signed_reg <= 1'b0;
-		x_reg <= (WIDTH-1)'b0;
+		x_reg <= 32'b0;
 		y_reg <= 32'b0;
 	end
     else begin
